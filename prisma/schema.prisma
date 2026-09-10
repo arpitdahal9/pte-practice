@@ -1,0 +1,282 @@
+// PTE Practice Platform — Prisma schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+/// The four PTE skill areas used for the dashboard breakdown.
+/// (In the real exam Speaking & Writing share a section; we keep
+/// them separate so per-skill progress can be tracked distinctly.)
+enum Section {
+  SPEAKING
+  WRITING
+  READING
+  LISTENING
+}
+
+/// Every supported PTE-style task type. The Section a task belongs to
+/// is fixed in code (see src/lib/pte/taskTypes.ts).
+enum TaskType {
+  // Speaking
+  READ_ALOUD
+  REPEAT_SENTENCE
+  DESCRIBE_IMAGE
+  RETELL_LECTURE
+  ANSWER_SHORT_QUESTION
+  // Writing
+  SUMMARIZE_WRITTEN_TEXT
+  WRITE_ESSAY
+  // Reading
+  RW_FILL_BLANKS
+  MCQ_SINGLE_R
+  MCQ_MULTI_R
+  REORDER_PARAGRAPHS
+  R_FILL_BLANKS
+  // Listening
+  SUMMARIZE_SPOKEN_TEXT
+  MCQ_MULTI_L
+  L_FILL_BLANKS
+  HIGHLIGHT_SUMMARY
+  MCQ_SINGLE_L
+  SELECT_MISSING_WORD
+  HIGHLIGHT_INCORRECT_WORDS
+  WRITE_FROM_DICTATION
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AttemptMode {
+  PRACTICE
+  MOCK
+}
+
+enum ScoreStatus {
+  PENDING
+  SCORED
+  FAILED
+}
+
+enum MockTestType {
+  FULL
+  SECTION
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth (NextAuth / Auth.js) + app user data
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String? // null for OAuth-only accounts
+  role           Role      @default(USER)
+  targetScore    Int? // user's PTE goal (0-90)
+
+  accounts     Account[]
+  sessions     Session[]
+  attempts     Attempt[]
+  mockAttempts MockAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Content: the question bank
+// ─────────────────────────────────────────────────────────────
+
+model Question {
+  id           String   @id @default(cuid())
+  section      Section
+  taskType     TaskType
+  title        String
+  instructions String? // task-specific instructions shown to the user
+  promptText   String?  @db.Text // reading passage / essay topic / sentence text
+  mediaUrl     String? // audio / image / video prompt URL (storage-driver relative or absolute)
+  mediaType    String? // "audio" | "image" | "video"
+
+  /// Task-specific structured content. Shape varies by taskType — see
+  /// src/lib/pte/schemas.ts for the zod schema of each variant.
+  /// Contains options, correct answers, blanks, reference text, key points, etc.
+  payload Json
+
+  difficulty Int      @default(2) // 1 (easy) – 3 (hard)
+  isSample   Boolean  @default(true) // sample/style-alike content, never official PTE material
+  tags       String[] @default([])
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attempts       Attempt[]
+  mockQuestions  MockTestQuestion[]
+
+  @@index([section, taskType])
+  @@index([taskType])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Attempts + AI scores
+// ─────────────────────────────────────────────────────────────
+
+model Attempt {
+  id         String      @id @default(cuid())
+  userId     String
+  questionId String
+  mode       AttemptMode @default(PRACTICE)
+
+  responseText     String? @db.Text // essays, summaries, dictation, transcript of speech
+  responseAudioUrl String? // stored recording for speaking tasks
+  transcript       String? @db.Text // STT output for speaking tasks
+
+  /// Structured response for interactive tasks: selected option ids,
+  /// drag order, filled blanks, highlighted word indices, etc.
+  responseData Json?
+
+  durationSec Int? // time the user spent on the task
+
+  mockAttemptId String?
+  mockAttempt   MockAttempt? @relation(fields: [mockAttemptId], references: [id], onDelete: SetNull)
+
+  score Score?
+
+  createdAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([questionId])
+  @@index([mockAttemptId])
+}
+
+model Score {
+  id        String      @id @default(cuid())
+  attemptId String      @unique
+  status    ScoreStatus @default(SCORED)
+
+  overall Int // 0-90, PTE-aligned
+
+  /// Per-sub-criterion breakdown, e.g.
+  /// { "content": 4, "grammar": 3, "vocabulary": 4, "form": 2, ... }
+  /// Keys depend on the task rubric (see src/lib/scoring/rubrics).
+  breakdown Json
+
+  feedback     String   @db.Text
+  strengths    String[] @default([])
+  improvements String[] @default([])
+
+  rawResponse   Json? // raw model JSON, for audit/debugging
+  scorerModel   String? // e.g. "claude-opus-4-8"
+  scorerVersion String  @default("v1")
+  error         String? // populated when status = FAILED
+
+  createdAt DateTime @default(now())
+
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Mock tests (timed, full or per-section)
+// ─────────────────────────────────────────────────────────────
+
+model MockTest {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  type        MockTestType @default(SECTION)
+  section     Section? // set when type = SECTION
+  isSample    Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions MockTestQuestion[]
+  attempts  MockAttempt[]
+}
+
+model MockTestQuestion {
+  id         String @id @default(cuid())
+  mockTestId String
+  questionId String
+  order      Int
+
+  mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([mockTestId, questionId])
+  @@index([mockTestId])
+}
+
+model MockAttempt {
+  id         String    @id @default(cuid())
+  userId     String
+  mockTestId String
+  startedAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  /// { "SPEAKING": 65, "WRITING": 70, ... } computed on completion.
+  sectionScores Json?
+  overallScore  Int?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mockTest MockTest  @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  @@index([userId])
+  @@index([mockTestId])
+}

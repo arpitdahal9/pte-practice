@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pte_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pte
+      POSTGRES_PASSWORD: pte_password
+      POSTGRES_DB: pte_practice
+    ports:
+      # Host 5433 -> container 5432 (5432 is often already in use locally).
+      - "5433:5432"
+    volumes:
+      - pte_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pte -d pte_practice"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pte_pgdata:

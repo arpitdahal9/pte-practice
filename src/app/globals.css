@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────
+   "Calibration" — the design language for this app.
+
+   PTE is scored 10–90. The product's whole job is telling an adult learner
+   where they sit on that scale and how far it is to their target, so the
+   visual language is a measuring instrument: cool graphite paper, deep petrol
+   for actions, and a single amber "readout" reserved exclusively for score
+   numerals and target markers. Amber appears nowhere else — that scarcity is
+   what makes a score read as a reading.
+
+   Tokens are HSL channels so Tailwind v4 utilities can compose opacity.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --background: 214 18% 92%; /* graphite paper */
+  --foreground: 214 39% 7%; /* blue-black ink */
+  --card: 0 0% 100%;
+  --card-foreground: 214 39% 7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 214 39% 7%;
+
+  --primary: 192 72% 21%; /* petrol — actions, headers */
+  --primary-foreground: 195 40% 96%;
+
+  --secondary: 214 20% 88%;
+  --secondary-foreground: 214 39% 7%;
+  --muted: 214 20% 89%;
+  --muted-foreground: 214 16% 41%;
+  --accent: 214 22% 86%;
+  --accent-foreground: 214 39% 7%;
+
+  --destructive: 8 68% 44%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 213 18% 83%; /* rule */
+  --input: 213 18% 78%;
+  --ring: 192 72% 21%;
+
+  /* Instrument readout. Score numerals and target markers only. */
+  --readout: 35 100% 39%;
+  --readout-foreground: 0 0% 100%;
+
+  /* Band semantics for the 10–90 scale. */
+  --band-track: 214 20% 87%;
+  --band-fill: 192 72% 21%;
+
+  --radius: 0.25rem; /* precise, not pill-shaped */
+}
+
+.dark {
+  --background: 214 32% 7%;
+  --foreground: 213 30% 92%;
+  --card: 213 27% 10%;
+  --card-foreground: 213 30% 92%;
+  --popover: 213 27% 10%;
+  --popover-foreground: 213 30% 92%;
+
+  --primary: 189 48% 56%;
+  --primary-foreground: 205 45% 8%;
+
+  --secondary: 212 24% 15%;
+  --secondary-foreground: 213 30% 92%;
+  --muted: 212 24% 15%;
+  --muted-foreground: 211 17% 64%;
+  --accent: 211 24% 18%;
+  --accent-foreground: 213 30% 92%;
+
+  --destructive: 6 62% 52%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 209 28% 19%;
+  --input: 209 28% 24%;
+  --ring: 189 48% 56%;
+
+  --readout: 35 78% 57%;
+  --readout-foreground: 205 45% 8%;
+
+  --band-track: 211 24% 18%;
+  --band-fill: 189 48% 56%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-readout: hsl(var(--readout));
+  --color-readout-foreground: hsl(var(--readout-foreground));
+  --color-band-track: hsl(var(--band-track));
+  --color-band-fill: hsl(var(--band-fill));
+
+  --font-display: var(--font-plex-condensed), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 1px);
+  --radius-sm: calc(var(--radius) - 2px);
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  html {
+    /* Stop accidental horizontal scroll from full-bleed rows on narrow phones. */
+    overflow-x: clip;
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "kern", "liga";
+    /* Comfortable tap targets without fighting browser zoom. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* The display face is condensed, so it carries its own tightened rhythm. */
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-plex-condensed), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* Numerals must not shift width as a score ticks upward. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Eyebrow labels: the instrument's engraved captions. */
+  .eyebrow {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* A calibration rule: repeating hairline ticks. Used as a section divider so
+     the tick motif carries beyond the score band itself. */
+  .tick-rule {
+    height: 0.5rem;
+    background-image: repeating-linear-gradient(
+      to right,
+      hsl(var(--border)) 0 1px,
+      transparent 1px 0.5rem
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
