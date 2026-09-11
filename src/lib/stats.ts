@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { TASK_TYPES } from "@/lib/pte/taskTypes";
 import type { Section, TaskType } from "@prisma/client";
 
@@ -24,6 +24,7 @@ export interface UserStats {
 const SECTION_ORDER: Section[] = ["SPEAKING", "WRITING", "READING", "LISTENING"];
 
 export async function getUserStats(userId: string): Promise<UserStats> {
+  const prisma = await getDb();
   const attempts = await prisma.attempt.findMany({
     // Only SCORED counts. A FAILED score is a placeholder holding the error
     // message, with overall = 0; including it would drag every average and

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { toClientQuestion, shuffle, selectCandidateIds } from "@/lib/questions";
 import type { TaskType } from "@prisma/client";
 
@@ -32,6 +32,7 @@ export async function pickNextQuestions(
   taskType: TaskType,
   { exclude = [], take = 1 }: NextQuestionOptions = {},
 ) {
+  const prisma = await getDb();
   // Ids only — cheap enough to filter in memory at question-bank scale, and
   // avoids a correlated subquery per candidate row.
   const [pool, recentAttempts] = await Promise.all([
@@ -80,12 +81,14 @@ export async function getNextClientQuestion(
 }
 
 /** How many questions exist for a task type. */
-export function countQuestions(taskType: TaskType) {
+export async function countQuestions(taskType: TaskType) {
+  const prisma = await getDb();
   return prisma.question.count({ where: { taskType } });
 }
 
 /** A specific question by id, sanitized for the client. */
 export async function getClientQuestionById(id: string) {
+  const prisma = await getDb();
   const q = await prisma.question.findUnique({ where: { id } });
   return q ? toClientQuestion(q) : null;
 }

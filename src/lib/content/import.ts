@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { TASK_TYPES } from "@/lib/pte/taskTypes";
 import { payloadSchemaFor } from "@/lib/pte/schemas";
-import { TaskType } from "@prisma/client";
+import { Prisma, TaskType } from "@prisma/client";
 import { z } from "zod";
 
 /**
@@ -69,6 +69,7 @@ export async function importQuestions(
     item: ImportItem;
     payload: unknown;
   }[] = [];
+  const prisma = await getDb();
 
   // Title is the dedup key: re-running a generation batch should not double up
   // the bank, and generated titles are descriptive enough to collide meaningfully.
@@ -137,7 +138,7 @@ export async function importQuestions(
       mediaUrl: null,
       payload: payload as object,
       difficulty: item.difficulty,
-      tags: item.tags,
+      tags: item.tags as Prisma.InputJsonValue,
       isSample: true,
     })),
   });

@@ -21,7 +21,6 @@ const bool = (def = false) =>
     .transform((v) => (v == null ? def : v.toLowerCase() === "true"));
 
 const schema = z.object({
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   AUTH_SECRET: z.string().optional().default("dev-only-auth-disabled"),
   NEXTAUTH_URL: z.string().url().optional().default("http://localhost:3000"),
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requirePageAuth } from "@/lib/session";
 import { getUserStats } from "@/lib/stats";
 import { SECTIONS, SECTION_LABELS } from "@/lib/pte/taskTypes";
@@ -12,6 +12,7 @@ export const metadata = { title: "Dashboard — PTE Practice" };
 
 export default async function DashboardPage() {
   const sessionUser = await requirePageAuth();
+  const prisma = await getDb();
   const [user, stats] = await Promise.all([
     prisma.user.findUnique({
       where: { id: sessionUser.id },

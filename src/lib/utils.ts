@@ -23,3 +23,9 @@ export function formatTime(totalSeconds: number) {
 export function tokenizeWords(text: string): string[] {
   return text.split(/\s+/).filter(Boolean);
 }
+
+/** Coerce Prisma Json (ex-String[]) fields to string[]. */
+export function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((x): x is string => typeof x === "string");
+}

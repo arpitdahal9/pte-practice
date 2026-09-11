@@ -16,6 +16,11 @@
 # next.js
 /.next/
 /out/
+/.open-next/
+
+# prisma local sqlite (CLI only)
+/prisma/dev.db
+/prisma/dev.db-journal
 
 # production
 /build

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { handler, ok, parseBody, requireUser } from "@/lib/api";
 import { createAttemptSchema } from "@/lib/validation/attempt";
 import { createScoredAttempt } from "@/lib/attempts";
@@ -25,6 +25,7 @@ export const GET = handler(async (req) => {
   const url = new URL(req.url);
   const take = Math.min(Number(url.searchParams.get("take") ?? 20), 100);
   const skip = Math.max(Number(url.searchParams.get("skip") ?? 0), 0);
+  const prisma = await getDb();
 
   const [attempts, total] = await Promise.all([
     prisma.attempt.findMany({

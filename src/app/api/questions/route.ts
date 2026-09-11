@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { handler, ok, parseBody, requireUser, requireAdmin, ApiError } from "@/lib/api";
 import { toClientQuestion } from "@/lib/questions";
 import { createQuestionSchema } from "@/lib/validation/question";
 import { payloadSchemaFor } from "@/lib/pte/schemas";
-import { Section, TaskType } from "@prisma/client";
+import { Prisma, Section, TaskType } from "@prisma/client";
 
 // GET /api/questions?section=&taskType=&take=&random=1  (auth required)
 export const GET = handler(async (req) => {
@@ -13,6 +13,7 @@ export const GET = handler(async (req) => {
   const taskType = url.searchParams.get("taskType") as TaskType | null;
   const random = url.searchParams.get("random") === "1";
   const take = Math.min(Number(url.searchParams.get("take") ?? 50), 100);
+  const prisma = await getDb();
 
   const where = {
     ...(section && Object.values(Section).includes(section) ? { section } : {}),
@@ -36,6 +37,7 @@ export const GET = handler(async (req) => {
 export const POST = handler(async (req) => {
   await requireAdmin();
   const body = await parseBody(req, createQuestionSchema);
+  const prisma = await getDb();
 
   const payloadParsed = payloadSchemaFor(body.taskType).safeParse(body.payload);
   if (!payloadParsed.success) {
@@ -53,7 +55,7 @@ export const POST = handler(async (req) => {
       mediaType: body.mediaType ?? null,
       payload: payloadParsed.data as object,
       difficulty: body.difficulty,
-      tags: body.tags,
+      tags: body.tags as Prisma.InputJsonValue,
       isSample: body.isSample,
     },
   });

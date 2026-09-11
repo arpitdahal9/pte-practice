@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { SECTIONS, SECTION_LABELS, taskTypesForSection } from "@/lib/pte/taskTypes";
 
 export const metadata = { title: "Practise — PTE Practice" };
@@ -11,6 +11,7 @@ export const metadata = { title: "Practise — PTE Practice" };
  * about the exam (RA, SWT, WFD…).
  */
 export default async function PracticeHub() {
+  const prisma = await getDb();
   const counts = await prisma.question.groupBy({
     by: ["taskType"],
     _count: { _all: true },

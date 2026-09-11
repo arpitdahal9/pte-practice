@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 
 const startSchema = z.object({ mockTestId: z.string().min(1) });
@@ -8,6 +8,7 @@ const startSchema = z.object({ mockTestId: z.string().min(1) });
 export const POST = handler(async (req) => {
   const user = await requireUser();
   const { mockTestId } = await parseBody(req, startSchema);
+  const prisma = await getDb();
 
   const test = await prisma.mockTest.findUnique({ where: { id: mockTestId } });
   if (!test) throw new ApiError("Mock test not found", 404);

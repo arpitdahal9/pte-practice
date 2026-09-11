@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requirePageAuth } from "@/lib/session";
 import { TASK_TYPES, SECTION_LABELS } from "@/lib/pte/taskTypes";
+import { asStringArray } from "@/lib/utils";
 import { ScoreCard, type AttemptScore } from "@/components/practice/score-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { ArrowLeft } from "lucide-react";
 export default async function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePageAuth();
   const { id } = await params;
+  const prisma = await getDb();
 
   const attempt = await prisma.attempt.findUnique({
     where: { id },
@@ -82,8 +84,8 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
             overall: score.overall,
             breakdown: score.breakdown as Record<string, number>,
             feedback: score.feedback,
-            strengths: score.strengths,
-            improvements: score.improvements,
+            strengths: asStringArray(score.strengths),
+            improvements: asStringArray(score.improvements),
             scorerModel: score.scorerModel,
           } satisfies AttemptScore}
           mock={score.scorerModel === "mock-heuristic"}

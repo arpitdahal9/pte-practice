@@ -1,5 +1,5 @@
 import type { Role } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 /** Stable local identity used now that accounts / login are removed. */
 export const GUEST_EMAIL = "guest@ptepractice.local";
@@ -16,6 +16,7 @@ export type AppUser = {
  * Practice attempts, history, profile, and admin all hang off this id.
  */
 export async function getAppUser(): Promise<AppUser> {
+  const prisma = await getDb();
   const user = await prisma.user.upsert({
     where: { email: GUEST_EMAIL },
     update: {},

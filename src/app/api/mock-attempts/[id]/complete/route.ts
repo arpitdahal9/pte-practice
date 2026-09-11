@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { handler, ok, requireUser, ApiError } from "@/lib/api";
 import { TASK_TYPES } from "@/lib/pte/taskTypes";
 import type { Section } from "@prisma/client";
@@ -7,6 +7,7 @@ import type { Section } from "@prisma/client";
 export const POST = handler(async (_req, { params }) => {
   await requireUser();
   const { id } = await params;
+  const prisma = await getDb();
 
   const mock = await prisma.mockAttempt.findUnique({
     where: { id },

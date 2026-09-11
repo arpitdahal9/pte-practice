@@ -1,13 +1,15 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { handler, ok, parseBody, requireUser, requireAdmin, ApiError } from "@/lib/api";
 import { toClientQuestion } from "@/lib/questions";
 import { updateQuestionSchema } from "@/lib/validation/question";
 import { payloadSchemaFor } from "@/lib/pte/schemas";
+import { Prisma } from "@prisma/client";
 
 // GET /api/questions/[id] — sanitized question for the player (auth required)
 export const GET = handler(async (_req, { params }) => {
   await requireUser();
   const { id } = await params;
+  const prisma = await getDb();
   const q = await prisma.question.findUnique({ where: { id } });
   if (!q) throw new ApiError("Question not found", 404);
   return ok({ question: toClientQuestion(q) });
@@ -17,6 +19,7 @@ export const GET = handler(async (_req, { params }) => {
 export const PATCH = handler(async (req, { params }) => {
   await requireAdmin();
   const { id } = await params;
+  const prisma = await getDb();
   const existing = await prisma.question.findUnique({ where: { id } });
   if (!existing) throw new ApiError("Question not found", 404);
 
@@ -45,7 +48,7 @@ export const PATCH = handler(async (req, { params }) => {
       mediaType: body.mediaType,
       payload: payload as object,
       difficulty: body.difficulty ?? undefined,
-      tags: body.tags ?? undefined,
+      tags: body.tags !== undefined ? (body.tags as Prisma.InputJsonValue) : undefined,
       isSample: body.isSample ?? undefined,
     },
   });
@@ -57,6 +60,7 @@ export const PATCH = handler(async (req, { params }) => {
 export const DELETE = handler(async (_req, { params }) => {
   await requireAdmin();
   const { id } = await params;
+  const prisma = await getDb();
   await prisma.question.delete({ where: { id } }).catch(() => {
     throw new ApiError("Question not found", 404);
   });

@@ -1,6 +1,9 @@
 import { requirePageAuth } from "@/lib/session";
 import { AppNav } from "@/components/app-nav";
 
+/** App shell always needs the DB (guest user + live content) — never SSG. */
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Keeps a guest row in the DB for attempts / profile; no login gate.
   await requirePageAuth();

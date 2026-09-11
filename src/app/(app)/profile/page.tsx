@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requirePageAuth } from "@/lib/session";
 import { ProfileForm } from "./profile-form";
 
@@ -6,6 +6,7 @@ export const metadata = { title: "Profile — PTE Practice" };
 
 export default async function ProfilePage() {
   const sessionUser = await requirePageAuth();
+  const prisma = await getDb();
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
     select: { name: true, email: true, targetScore: true },

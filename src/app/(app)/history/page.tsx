@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requirePageAuth } from "@/lib/session";
 import { TASK_TYPES, SECTION_LABELS } from "@/lib/pte/taskTypes";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ export const metadata = { title: "History — PTE Practice" };
 
 export default async function HistoryPage() {
   const user = await requirePageAuth();
+  const prisma = await getDb();
   const attempts = await prisma.attempt.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },

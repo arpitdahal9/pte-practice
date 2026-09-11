@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { SECTION_LABELS } from "@/lib/pte/taskTypes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Timer } from "lucide-react";
 export const metadata = { title: "Mock Tests — PTE Practice" };
 
 export default async function MockHub() {
+  const prisma = await getDb();
   const tests = await prisma.mockTest.findMany({
     orderBy: [{ type: "asc" }, { title: "asc" }],
     include: { _count: { select: { questions: true } } },

@@ -1,16 +1,18 @@
-import { prisma } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { responseSchemaFor } from "@/lib/pte/schemas";
 import { TASK_TYPES } from "@/lib/pte/taskTypes";
 import { scoreResponse, ScoringUnavailableError } from "@/lib/scoring";
 import type { ScoreResult } from "@/lib/scoring";
 import type { CreateAttemptInput } from "@/lib/validation/attempt";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Validate a response, score it, and persist the Attempt + Score.
  * Shared by the practice and mock-test flows.
  */
 export async function createScoredAttempt(userId: string, input: CreateAttemptInput) {
+  const prisma = await getDb();
   const question = await prisma.question.findUnique({ where: { id: input.questionId } });
   if (!question) throw new ApiError("Question not found", 404);
 
@@ -71,8 +73,8 @@ export async function createScoredAttempt(userId: string, input: CreateAttemptIn
               overall: score.overall,
               breakdown: score.breakdown,
               feedback: score.feedback,
-              strengths: score.strengths,
-              improvements: score.improvements,
+              strengths: score.strengths as Prisma.InputJsonValue,
+              improvements: score.improvements as Prisma.InputJsonValue,
               rawResponse: (score.raw ?? undefined) as object | undefined,
               scorerModel: score.scorerModel,
               scorerVersion: score.scorerVersion,
@@ -109,6 +111,7 @@ export async function createScoredAttempt(userId: string, input: CreateAttemptIn
  * "Retry scoring" action so a transient outage doesn't cost the user the work.
  */
 export async function rescoreAttempt(_userId: string, attemptId: string) {
+  const prisma = await getDb();
   const attempt = await prisma.attempt.findFirst({
     where: { id: attemptId },
     include: { question: true, score: true },
@@ -136,8 +139,8 @@ export async function rescoreAttempt(_userId: string, attemptId: string) {
       overall: score.overall,
       breakdown: score.breakdown,
       feedback: score.feedback,
-      strengths: score.strengths,
-      improvements: score.improvements,
+      strengths: score.strengths as Prisma.InputJsonValue,
+      improvements: score.improvements as Prisma.InputJsonValue,
       rawResponse: (score.raw ?? undefined) as object | undefined,
       scorerModel: score.scorerModel,
       scorerVersion: score.scorerVersion,

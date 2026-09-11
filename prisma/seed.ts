@@ -1,36 +1,75 @@
-import "dotenv/config";
+/**
+ * Emit D1/SQLite seed SQL from the in-repo sample question bank.
+ * Does not talk to PrismaClient / a live database.
+ *
+ * Usage: npm run db:seed
+ * Writes: prisma/seed.sql (+ SVG charts under public/uploads/seed)
+ */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { Prisma, PrismaClient, type Section, type TaskType } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
+import type { Section, TaskType } from "@prisma/client";
 import { SEED as SEED_BASE } from "./seed-data";
 import { SEED_EXTRA } from "./seed-data-extra";
 
 const SEED = [...SEED_BASE, ...SEED_EXTRA];
 
-const prisma = new PrismaClient();
-
-// Section each task type belongs to (mirrors src/lib/pte/taskTypes.ts).
 const TASK_SECTION: Record<TaskType, Section> = {
-  READ_ALOUD: "SPEAKING", REPEAT_SENTENCE: "SPEAKING", DESCRIBE_IMAGE: "SPEAKING",
-  RETELL_LECTURE: "SPEAKING", ANSWER_SHORT_QUESTION: "SPEAKING",
-  SUMMARIZE_WRITTEN_TEXT: "WRITING", WRITE_ESSAY: "WRITING",
-  RW_FILL_BLANKS: "READING", MCQ_SINGLE_R: "READING", MCQ_MULTI_R: "READING",
-  REORDER_PARAGRAPHS: "READING", R_FILL_BLANKS: "READING",
-  SUMMARIZE_SPOKEN_TEXT: "LISTENING", MCQ_MULTI_L: "LISTENING", L_FILL_BLANKS: "LISTENING",
-  HIGHLIGHT_SUMMARY: "LISTENING", MCQ_SINGLE_L: "LISTENING", SELECT_MISSING_WORD: "LISTENING",
-  HIGHLIGHT_INCORRECT_WORDS: "LISTENING", WRITE_FROM_DICTATION: "LISTENING",
+  READ_ALOUD: "SPEAKING",
+  REPEAT_SENTENCE: "SPEAKING",
+  DESCRIBE_IMAGE: "SPEAKING",
+  RETELL_LECTURE: "SPEAKING",
+  ANSWER_SHORT_QUESTION: "SPEAKING",
+  SUMMARIZE_WRITTEN_TEXT: "WRITING",
+  WRITE_ESSAY: "WRITING",
+  RW_FILL_BLANKS: "READING",
+  MCQ_SINGLE_R: "READING",
+  MCQ_MULTI_R: "READING",
+  REORDER_PARAGRAPHS: "READING",
+  R_FILL_BLANKS: "READING",
+  SUMMARIZE_SPOKEN_TEXT: "LISTENING",
+  MCQ_MULTI_L: "LISTENING",
+  L_FILL_BLANKS: "LISTENING",
+  HIGHLIGHT_SUMMARY: "LISTENING",
+  MCQ_SINGLE_L: "LISTENING",
+  SELECT_MISSING_WORD: "LISTENING",
+  HIGHLIGHT_INCORRECT_WORDS: "LISTENING",
+  WRITE_FROM_DICTATION: "LISTENING",
 };
 
 const AUDIO_TASKS: TaskType[] = [
-  "REPEAT_SENTENCE", "DESCRIBE_IMAGE", "RETELL_LECTURE", "ANSWER_SHORT_QUESTION",
-  "SUMMARIZE_SPOKEN_TEXT", "MCQ_MULTI_L", "L_FILL_BLANKS", "HIGHLIGHT_SUMMARY",
-  "MCQ_SINGLE_L", "SELECT_MISSING_WORD", "HIGHLIGHT_INCORRECT_WORDS", "WRITE_FROM_DICTATION",
+  "REPEAT_SENTENCE",
+  "DESCRIBE_IMAGE",
+  "RETELL_LECTURE",
+  "ANSWER_SHORT_QUESTION",
+  "SUMMARIZE_SPOKEN_TEXT",
+  "MCQ_MULTI_L",
+  "L_FILL_BLANKS",
+  "HIGHLIGHT_SUMMARY",
+  "MCQ_SINGLE_L",
+  "SELECT_MISSING_WORD",
+  "HIGHLIGHT_INCORRECT_WORDS",
+  "WRITE_FROM_DICTATION",
 ];
 
-// ── Sample chart images for Describe Image (no external assets needed) ──
+function sqlStr(value: string | null | undefined): string {
+  if (value == null) return "NULL";
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+function sqlJson(value: unknown): string {
+  return sqlStr(JSON.stringify(value));
+}
+
+function stableId(prefix: string, key: string): string {
+  const h = createHash("sha1").update(key).digest("hex").slice(0, 16);
+  return `${prefix}_${h}`;
+}
+
 function barChartSvg(title: string, bars: { label: string; value: number }[], color: string) {
-  const w = 480, h = 300, pad = 40;
+  const w = 480,
+    h = 300,
+    pad = 40;
   const max = Math.max(...bars.map((b) => b.value));
   const bw = (w - pad * 2) / bars.length;
   const rects = bars
@@ -52,64 +91,85 @@ ${rects}
 }
 
 const IMAGES: Record<number, string> = {
-  1: barChartSvg("Energy sources (%)", [
-    { label: "Solar", value: 40 }, { label: "Wind", value: 30 }, { label: "Hydro", value: 20 }, { label: "Coal", value: 10 },
-  ], "#2563eb"),
-  2: barChartSvg("Monthly website visitors (k)", [
-    { label: "Jan", value: 12 }, { label: "Feb", value: 18 }, { label: "Mar", value: 22 }, { label: "Apr", value: 19 }, { label: "May", value: 28 }, { label: "Jun", value: 35 },
-  ], "#0891b2"),
-  3: barChartSvg("Household budget (%)", [
-    { label: "Housing", value: 35 }, { label: "Food", value: 20 }, { label: "Transport", value: 15 }, { label: "Other", value: 20 }, { label: "Savings", value: 10 },
-  ], "#7c3aed"),
-  4: barChartSvg("Average rainfall (mm)", [
-    { label: "Win", value: 90 }, { label: "Spr", value: 60 }, { label: "Sum", value: 25 }, { label: "Aut", value: 55 },
-  ], "#059669"),
-  5: barChartSvg("Sales by region (k)", [
-    { label: "North", value: 48 }, { label: "East", value: 33 }, { label: "South", value: 40 }, { label: "West", value: 22 },
-  ], "#ea580c"),
+  1: barChartSvg(
+    "Energy sources (%)",
+    [
+      { label: "Solar", value: 40 },
+      { label: "Wind", value: 30 },
+      { label: "Hydro", value: 20 },
+      { label: "Coal", value: 10 },
+    ],
+    "#2563eb",
+  ),
+  2: barChartSvg(
+    "Monthly website visitors (k)",
+    [
+      { label: "Jan", value: 12 },
+      { label: "Feb", value: 18 },
+      { label: "Mar", value: 22 },
+      { label: "Apr", value: 19 },
+      { label: "May", value: 28 },
+      { label: "Jun", value: 35 },
+    ],
+    "#0891b2",
+  ),
+  3: barChartSvg(
+    "Household budget (%)",
+    [
+      { label: "Housing", value: 35 },
+      { label: "Food", value: 20 },
+      { label: "Transport", value: 15 },
+      { label: "Other", value: 20 },
+      { label: "Savings", value: 10 },
+    ],
+    "#7c3aed",
+  ),
+  4: barChartSvg(
+    "Average rainfall (mm)",
+    [
+      { label: "Win", value: 90 },
+      { label: "Spr", value: 60 },
+      { label: "Sum", value: 25 },
+      { label: "Aut", value: 55 },
+    ],
+    "#059669",
+  ),
+  5: barChartSvg(
+    "Sales by region (k)",
+    [
+      { label: "North", value: 48 },
+      { label: "East", value: 33 },
+      { label: "South", value: 40 },
+      { label: "West", value: 22 },
+    ],
+    "#ea580c",
+  ),
 };
 
-async function main() {
-  console.log("Seeding PTE Practice sample content…");
+function main() {
+  const lines: string[] = [];
+  lines.push("-- PTE Practice sample seed for Cloudflare D1 / SQLite");
+  lines.push("-- Generated by prisma/seed.ts — do not edit by hand.");
+  lines.push("PRAGMA foreign_keys = ON;");
+  lines.push("");
 
-  // Shared open guest (auth removed) + legacy demo admin email if present.
-  await prisma.user.upsert({
-    where: { email: "guest@ptepractice.local" },
-    update: { role: "ADMIN", name: "Guest" },
-    create: {
-      email: "guest@ptepractice.local",
-      name: "Guest",
-      role: "ADMIN",
-    },
-  });
+  const guestId = "guest_pte_practice_local";
+  const now = "datetime('now')";
+  lines.push("-- Guest user (open app identity)");
+  lines.push(
+    `INSERT OR REPLACE INTO User (id, name, email, role, createdAt, updatedAt) VALUES (${sqlStr(guestId)}, 'Guest', 'guest@ptepractice.local', 'ADMIN', ${now}, ${now});`,
+  );
+  lines.push("");
 
-  const adminEmail = "admin@ptepractice.local";
-  const adminPass = "Password123!";
-  await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: { role: "ADMIN" },
-    create: {
-      email: adminEmail,
-      name: "Demo Admin",
-      role: "ADMIN",
-      hashedPassword: await bcrypt.hash(adminPass, 12),
-      targetScore: 79,
-    },
-  });
-
-  // 2) Chart images for Describe Image.
   const imgDir = path.join(process.cwd(), "public", "uploads", "seed");
   mkdirSync(imgDir, { recursive: true });
   for (const [n, svg] of Object.entries(IMAGES)) {
     writeFileSync(path.join(imgDir, `img${n}.svg`), svg, "utf8");
   }
 
-  // 3) Reset sample content (idempotent) then insert.
-  await prisma.mockTest.deleteMany({});
-  await prisma.question.deleteMany({ where: { isSample: true } });
-
   const createdByType = new Map<TaskType, string[]>();
 
+  lines.push("-- Sample questions");
   for (const item of SEED) {
     const section = TASK_SECTION[item.taskType];
     const payload = { ...(item.payload as Record<string, unknown>) };
@@ -117,50 +177,37 @@ async function main() {
     let mediaUrl: string | null = null;
     let mediaType: string | null = null;
 
-    // Reading MCQ: show the passage (move it out of payload to promptText).
     if ((item.taskType === "MCQ_SINGLE_R" || item.taskType === "MCQ_MULTI_R") && payload.passage) {
       promptText = String(payload.passage);
       delete payload.passage;
     }
-    // Audio tasks: the spoken script becomes hidden promptText (used by seed:audio).
     if (AUDIO_TASKS.includes(item.taskType)) {
       mediaType = "audio";
       if (item.spoken) promptText = item.spoken;
     }
-    // Describe Image: attach the generated chart.
     if (item.taskType === "DESCRIBE_IMAGE" && item.image) {
       mediaType = "image";
       mediaUrl = `/uploads/seed/img${item.image}.svg`;
     }
 
-    const q = await prisma.question.create({
-      data: {
-        section,
-        taskType: item.taskType,
-        title: item.title,
-        instructions: item.instructions ?? null,
-        promptText,
-        mediaUrl,
-        mediaType,
-        payload: payload as Prisma.InputJsonValue,
-        difficulty: 2,
-        isSample: true,
-        tags: item.tags ?? [],
-      },
-      select: { id: true },
-    });
+    const id = stableId("q", `${item.taskType}:${item.title}`);
+    const tags = item.tags ?? [];
+    lines.push(
+      `INSERT OR REPLACE INTO Question (id, section, taskType, title, instructions, promptText, mediaUrl, mediaType, payload, difficulty, isSample, tags, createdAt, updatedAt) VALUES (${sqlStr(id)}, ${sqlStr(section)}, ${sqlStr(item.taskType)}, ${sqlStr(item.title)}, ${sqlStr(item.instructions ?? null)}, ${sqlStr(promptText)}, ${sqlStr(mediaUrl)}, ${sqlStr(mediaType)}, ${sqlJson(payload)}, 2, 1, ${sqlJson(tags)}, ${now}, ${now});`,
+    );
+
     const list = createdByType.get(item.taskType) ?? [];
-    list.push(q.id);
+    list.push(id);
     createdByType.set(item.taskType, list);
   }
+  lines.push("");
 
-  const totalQ = [...createdByType.values()].reduce((s, l) => s + l.length, 0);
-  console.log(`Inserted ${totalQ} sample questions across ${createdByType.size} task types.`);
-
-  // 4) Mock tests — one per section + one full mock.
   const sectionsList: Section[] = ["SPEAKING", "WRITING", "READING", "LISTENING"];
   const sectionLabel: Record<Section, string> = {
-    SPEAKING: "Speaking", WRITING: "Writing", READING: "Reading", LISTENING: "Listening",
+    SPEAKING: "Speaking",
+    WRITING: "Writing",
+    READING: "Reading",
+    LISTENING: "Listening",
   };
 
   function questionsForSection(section: Section, perType: number): string[] {
@@ -171,42 +218,41 @@ async function main() {
     return ids;
   }
 
+  lines.push("-- Section + full mock tests");
   for (const section of sectionsList) {
     const ids = questionsForSection(section, 1);
     if (ids.length === 0) continue;
-    await prisma.mockTest.create({
-      data: {
-        title: `${sectionLabel[section]} Mock Test`,
-        description: `A timed ${sectionLabel[section]} section mock covering each task type once.`,
-        type: "SECTION",
-        section,
-        isSample: true,
-        questions: { create: ids.map((questionId, order) => ({ questionId, order })) },
-      },
+    const mockId = stableId("mock", `section:${section}`);
+    lines.push(
+      `INSERT OR REPLACE INTO MockTest (id, title, description, type, section, isSample, createdAt, updatedAt) VALUES (${sqlStr(mockId)}, ${sqlStr(`${sectionLabel[section]} Mock Test`)}, ${sqlStr(`A timed ${sectionLabel[section]} section mock covering each task type once.`)}, 'SECTION', ${sqlStr(section)}, 1, ${now}, ${now});`,
+    );
+    ids.forEach((questionId, order) => {
+      const linkId = stableId("mq", `${mockId}:${questionId}`);
+      lines.push(
+        `INSERT OR REPLACE INTO MockTestQuestion (id, mockTestId, questionId, \`order\`) VALUES (${sqlStr(linkId)}, ${sqlStr(mockId)}, ${sqlStr(questionId)}, ${order});`,
+      );
     });
   }
 
-  // Full mock: one question from each task type.
   const fullIds: string[] = [];
   for (const list of createdByType.values()) if (list[0]) fullIds.push(list[0]);
-  await prisma.mockTest.create({
-    data: {
-      title: "Full PTE Mock Test",
-      description: "A full-length style-alike mock spanning all four skills and every task type.",
-      type: "FULL",
-      isSample: true,
-      questions: { create: fullIds.map((questionId, order) => ({ questionId, order })) },
-    },
+  const fullMockId = stableId("mock", "full");
+  lines.push(
+    `INSERT OR REPLACE INTO MockTest (id, title, description, type, section, isSample, createdAt, updatedAt) VALUES (${sqlStr(fullMockId)}, 'Full PTE Mock Test', 'A full-length style-alike mock spanning all four skills and every task type.', 'FULL', NULL, 1, ${now}, ${now});`,
+  );
+  fullIds.forEach((questionId, order) => {
+    const linkId = stableId("mq", `${fullMockId}:${questionId}`);
+    lines.push(
+      `INSERT OR REPLACE INTO MockTestQuestion (id, mockTestId, questionId, \`order\`) VALUES (${sqlStr(linkId)}, ${sqlStr(fullMockId)}, ${sqlStr(questionId)}, ${order});`,
+    );
   });
 
-  console.log("Created 4 section mocks + 1 full mock.");
-  console.log(`\nDemo admin login:  ${adminEmail}  /  ${adminPass}`);
-  console.log("Done. Run `npm run seed:audio` (with OPENAI_API_KEY set) to generate audio for listening/speaking tasks.");
+  const outPath = path.join(process.cwd(), "prisma", "seed.sql");
+  writeFileSync(outPath, lines.join("\n") + "\n", "utf8");
+  const totalQ = [...createdByType.values()].reduce((s, l) => s + l.length, 0);
+  console.log(`Wrote ${outPath}`);
+  console.log(`Questions: ${totalQ}; mocks: 5 (4 section + 1 full).`);
+  console.log("Apply with: wrangler d1 execute pte-practice --file=prisma/seed.sql --local");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main();
